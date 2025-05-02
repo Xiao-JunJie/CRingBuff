@@ -1,0 +1,886 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="486" onload="init(evt)" viewBox="0 0 1200 486" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
+	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
+		}
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
+			return;
+
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			if(!dont_update_text) update_text(el[i]);
+		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (term) currentSearchTerm = term;
+		if (currentSearchTerm === null) return;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="486.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="469" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="469" > </text>
+<g id="frames">
+<g >
+<title>[main] (20,202,020 samples, 0.24%)</title><rect x="694.4" y="197" width="2.8" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="697.40" y="207.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (646,464,640 samples, 7.53%)</title><rect x="437.6" y="165" width="88.8" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="440.58" y="175.5" >entry_SYSC..</text>
+</g>
+<g >
+<title>std::thread::_Invoker&lt;std::tuple&lt;void  (8,474,747,390 samples, 98.71%)</title><rect x="19.7" y="341" width="1164.7" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="22.72" y="351.5" >std::thread::_Invoker&lt;std::tuple&lt;void </text>
+</g>
+<g >
+<title>__pthread_mutex_unlock_usercnt (1,727,272,710 samples, 20.12%)</title><rect x="891.5" y="181" width="237.4" height="15.0" fill="rgb(253,221,52)" rx="2" ry="2" />
+<text  x="894.53" y="191.5" >__pthread_mutex_unlock_usercnt</text>
+</g>
+<g >
+<title>__x64_sys_futex (171,717,170 samples, 2.00%)</title><rect x="437.6" y="133" width="23.6" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="440.58" y="143.5" >_..</text>
+</g>
+<g >
+<title>do_syscall_64 (646,464,640 samples, 7.53%)</title><rect x="437.6" y="149" width="88.8" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="440.58" y="159.5" >do_syscall..</text>
+</g>
+<g >
+<title>std::lock_guard&lt;std::mutex&gt;::lock_guard (10,101,010 samples, 0.12%)</title><rect x="1184.4" y="405" width="1.4" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="1187.45" y="415.5" ></text>
+</g>
+<g >
+<title>std::lock_guard&lt;std::mutex&gt;::~lock_guard (30,303,030 samples, 0.35%)</title><rect x="1185.8" y="405" width="4.2" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="1188.84" y="415.5" ></text>
+</g>
+<g >
+<title>CRingBuff::GetData (3,686,868,650 samples, 42.94%)</title><rect x="35.0" y="261" width="506.7" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="37.99" y="271.5" >CRingBuff::GetData</text>
+</g>
+<g >
+<title>CRingBuff::PutData (40,404,040 samples, 0.47%)</title><rect x="11.4" y="405" width="5.5" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="14.39" y="415.5" ></text>
+</g>
+<g >
+<title>try_to_wake_up (30,303,030 samples, 0.35%)</title><rect x="454.2" y="69" width="4.2" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="457.24" y="79.5" ></text>
+</g>
+<g >
+<title>wake_up_q (40,404,040 samples, 0.47%)</title><rect x="452.8" y="85" width="5.6" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="455.85" y="95.5" ></text>
+</g>
+<g >
+<title>native_queued_spin_lock_slowpath (10,101,010 samples, 0.12%)</title><rect x="232.1" y="53" width="1.4" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="235.12" y="63.5" ></text>
+</g>
+<g >
+<title>main (8,585,858,500 samples, 100.00%)</title><rect x="10.0" y="421" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="13.00" y="431.5" >main</text>
+</g>
+<g >
+<title>__gthread_active_p (30,303,030 samples, 0.35%)</title><rect x="269.6" y="197" width="4.2" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="272.60" y="207.5" ></text>
+</g>
+<g >
+<title>hash_futex (10,101,010 samples, 0.12%)</title><rect x="459.8" y="101" width="1.4" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="462.79" y="111.5" ></text>
+</g>
+<g >
+<title>std::__invoke&lt;void  (8,474,747,390 samples, 98.71%)</title><rect x="19.7" y="309" width="1164.7" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="22.72" y="319.5" >std::__invoke&lt;void </text>
+</g>
+<g >
+<title>irq_exit_rcu (10,101,010 samples, 0.12%)</title><rect x="606.9" y="213" width="1.4" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="609.94" y="223.5" ></text>
+</g>
+<g >
+<title>__softirqentry_text_start (10,101,010 samples, 0.12%)</title><rect x="606.9" y="197" width="1.4" height="15.0" fill="rgb(234,135,32)" rx="2" ry="2" />
+<text  x="609.94" y="207.5" ></text>
+</g>
+<g >
+<title>futex_wait_setup (30,303,030 samples, 0.35%)</title><rect x="816.6" y="85" width="4.1" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="819.56" y="95.5" ></text>
+</g>
+<g >
+<title>start_thread (8,474,747,390 samples, 98.71%)</title><rect x="19.7" y="389" width="1164.7" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="22.72" y="399.5" >start_thread</text>
+</g>
+<g >
+<title>std::thread::_State_impl&lt;std::thread::_Invoker&lt;std::tuple&lt;void  (8,474,747,390 samples, 98.71%)</title><rect x="19.7" y="357" width="1164.7" height="15.0" fill="rgb(234,137,32)" rx="2" ry="2" />
+<text  x="22.72" y="367.5" >std::thread::_State_impl&lt;std::thread::_Invoker&lt;std::tuple&lt;void </text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (303,030,300 samples, 3.53%)</title><rect x="811.0" y="165" width="41.7" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="814.01" y="175.5" >ent..</text>
+</g>
+<g >
+<title>CRingBuff::GetData (10,101,010 samples, 0.12%)</title><rect x="10.0" y="405" width="1.4" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="13.00" y="415.5" ></text>
+</g>
+<g >
+<title>syscall_enter_from_user_mode (262,626,260 samples, 3.06%)</title><rect x="233.5" y="133" width="36.1" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="236.51" y="143.5" >sys..</text>
+</g>
+<g >
+<title>do_syscall_64 (303,030,300 samples, 3.53%)</title><rect x="811.0" y="149" width="41.7" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="814.01" y="159.5" >do_..</text>
+</g>
+<g >
+<title>__GI___pthread_mutex_unlock (1,747,474,730 samples, 20.35%)</title><rect x="888.8" y="197" width="240.1" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="891.75" y="207.5" >__GI___pthread_mutex_unlock</text>
+</g>
+<g >
+<title>futex_wait (70,707,070 samples, 0.82%)</title><rect x="812.4" y="101" width="9.7" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="815.40" y="111.5" ></text>
+</g>
+<g >
+<title>__lock_text_start (30,303,030 samples, 0.35%)</title><rect x="454.2" y="53" width="4.2" height="15.0" fill="rgb(232,125,30)" rx="2" ry="2" />
+<text  x="457.24" y="63.5" ></text>
+</g>
+<g >
+<title>std::lock_guard&lt;std::mutex&gt;::lock_guard (1,404,040,390 samples, 16.35%)</title><rect x="669.4" y="245" width="193.0" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="672.41" y="255.5" >std::lock_guard&lt;std::mute..</text>
+</g>
+<g >
+<title>std::operator&amp; (30,303,030 samples, 0.35%)</title><rect x="555.6" y="245" width="4.1" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="558.58" y="255.5" ></text>
+</g>
+<g >
+<title>__x64_sys_futex (80,808,080 samples, 0.94%)</title><rect x="811.0" y="133" width="11.1" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="814.01" y="143.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (383,838,380 samples, 4.47%)</title><rect x="216.8" y="165" width="52.8" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="219.85" y="175.5" >entry..</text>
+</g>
+<g >
+<title>do_futex (111,111,110 samples, 1.29%)</title><rect x="218.2" y="117" width="15.3" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="221.24" y="127.5" ></text>
+</g>
+<g >
+<title>std::mutex::unlock (30,303,030 samples, 0.35%)</title><rect x="1185.8" y="389" width="4.2" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="1188.84" y="399.5" ></text>
+</g>
+<g >
+<title>std::min&lt;unsigned long&gt; (10,101,010 samples, 0.12%)</title><rect x="10.0" y="389" width="1.4" height="15.0" fill="rgb(235,140,33)" rx="2" ry="2" />
+<text  x="13.00" y="399.5" ></text>
+</g>
+<g >
+<title>hash_futex (10,101,010 samples, 0.12%)</title><rect x="820.7" y="85" width="1.4" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="823.73" y="95.5" ></text>
+</g>
+<g >
+<title>[libstdc++.so.6.0.28] (8,474,747,390 samples, 98.71%)</title><rect x="19.7" y="373" width="1164.7" height="15.0" fill="rgb(240,162,38)" rx="2" ry="2" />
+<text  x="22.72" y="383.5" >[libstdc++.so.6.0.28]</text>
+</g>
+<g >
+<title>do_futex (151,515,150 samples, 1.76%)</title><rect x="440.4" y="117" width="20.8" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="443.35" y="127.5" ></text>
+</g>
+<g >
+<title>__GI___pthread_mutex_lock (1,131,313,120 samples, 13.18%)</title><rect x="697.2" y="197" width="155.5" height="15.0" fill="rgb(248,202,48)" rx="2" ry="2" />
+<text  x="700.18" y="207.5" >__GI___pthread_mute..</text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (10,101,010 samples, 0.12%)</title><rect x="606.9" y="245" width="1.4" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="609.94" y="255.5" ></text>
+</g>
+<g >
+<title>futex_wait_queue_me (10,101,010 samples, 0.12%)</title><rect x="815.2" y="85" width="1.4" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="818.18" y="95.5" ></text>
+</g>
+<g >
+<title>_raw_spin_lock (20,202,020 samples, 0.24%)</title><rect x="450.1" y="85" width="2.7" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="453.07" y="95.5" ></text>
+</g>
+<g >
+<title>do_futex (50,505,050 samples, 0.59%)</title><rect x="1072.0" y="117" width="6.9" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="1075.00" y="127.5" ></text>
+</g>
+<g >
+<title>std::lock_guard&lt;std::mutex&gt;::~lock_guard (10,101,010 samples, 0.12%)</title><rect x="15.6" y="389" width="1.3" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="18.55" y="399.5" ></text>
+</g>
+<g >
+<title>__schedule (10,101,010 samples, 0.12%)</title><rect x="815.2" y="53" width="1.4" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="818.18" y="63.5" ></text>
+</g>
+<g >
+<title>__x64_sys_futex (50,505,050 samples, 0.59%)</title><rect x="1072.0" y="133" width="6.9" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="1075.00" y="143.5" ></text>
+</g>
+<g >
+<title>std::thread::_Invoker&lt;std::tuple&lt;void  (8,474,747,390 samples, 98.71%)</title><rect x="19.7" y="325" width="1164.7" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="22.72" y="335.5" >std::thread::_Invoker&lt;std::tuple&lt;void </text>
+</g>
+<g >
+<title>std::mutex::lock (1,262,626,250 samples, 14.71%)</title><rect x="100.2" y="229" width="173.6" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="103.24" y="239.5" >std::mutex::lock</text>
+</g>
+<g >
+<title>all (8,585,858,500 samples, 100%)</title><rect x="10.0" y="437" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="447.5" ></text>
+</g>
+<g >
+<title>syscall_enter_from_user_mode (363,636,360 samples, 4.24%)</title><rect x="1078.9" y="133" width="50.0" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="1081.94" y="143.5" >sysca..</text>
+</g>
+<g >
+<title>do_syscall_64 (383,838,380 samples, 4.47%)</title><rect x="216.8" y="149" width="52.8" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="219.85" y="159.5" >do_sy..</text>
+</g>
+<g >
+<title>std::min&lt;unsigned long&gt; (90,909,090 samples, 1.06%)</title><rect x="529.2" y="245" width="12.5" height="15.0" fill="rgb(235,140,33)" rx="2" ry="2" />
+<text  x="532.20" y="255.5" ></text>
+</g>
+<g >
+<title>get_futex_key (10,101,010 samples, 0.12%)</title><rect x="458.4" y="101" width="1.4" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="461.40" y="111.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (424,242,420 samples, 4.94%)</title><rect x="1070.6" y="149" width="58.3" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="1073.61" y="159.5" >do_sys..</text>
+</g>
+<g >
+<title>__GI___clone (8,474,747,390 samples, 98.71%)</title><rect x="19.7" y="405" width="1164.7" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="22.72" y="415.5" >__GI___clone</text>
+</g>
+<g >
+<title>__memmove_avx_unaligned_erms (70,707,070 samples, 0.82%)</title><rect x="83.6" y="245" width="9.7" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="86.58" y="255.5" ></text>
+</g>
+<g >
+<title>[main] (30,303,030 samples, 0.35%)</title><rect x="79.4" y="245" width="4.2" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="82.41" y="255.5" ></text>
+</g>
+<g >
+<title>schedule (10,101,010 samples, 0.12%)</title><rect x="815.2" y="69" width="1.4" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="818.18" y="79.5" ></text>
+</g>
+<g >
+<title>__GI___pthread_mutex_unlock (1,696,969,680 samples, 19.76%)</title><rect x="293.2" y="197" width="233.2" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="296.20" y="207.5" >__GI___pthread_mutex_unlock</text>
+</g>
+<g >
+<title>__gthread_active_p (70,707,070 samples, 0.82%)</title><rect x="852.7" y="197" width="9.7" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="855.66" y="207.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (424,242,420 samples, 4.94%)</title><rect x="1070.6" y="165" width="58.3" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="1073.61" y="175.5" >entry_..</text>
+</g>
+<g >
+<title>std::__atomic_base&lt;unsigned long&gt;::operator+= (353,535,350 samples, 4.12%)</title><rect x="559.7" y="261" width="48.6" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="562.74" y="271.5" >std:..</text>
+</g>
+<g >
+<title>std::__atomic_base&lt;unsigned long&gt;::load (10,101,010 samples, 0.12%)</title><rect x="18.3" y="389" width="1.4" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="21.33" y="399.5" ></text>
+</g>
+<g >
+<title>std::mutex::lock (10,101,010 samples, 0.12%)</title><rect x="1184.4" y="389" width="1.4" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="1187.45" y="399.5" ></text>
+</g>
+<g >
+<title>__lll_lock_wait (808,080,800 samples, 9.41%)</title><rect x="158.5" y="181" width="111.1" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="161.54" y="191.5" >__lll_lock_wait</text>
+</g>
+<g >
+<title>__gthread_active_p (10,101,010 samples, 0.12%)</title><rect x="1128.9" y="197" width="1.4" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="1131.92" y="207.5" ></text>
+</g>
+<g >
+<title>__get_user_nocheck_4 (10,101,010 samples, 0.12%)</title><rect x="218.2" y="85" width="1.4" height="15.0" fill="rgb(232,125,30)" rx="2" ry="2" />
+<text  x="221.24" y="95.5" ></text>
+</g>
+<g >
+<title>std::lock_guard&lt;std::mutex&gt;::~lock_guard (1,858,585,840 samples, 21.65%)</title><rect x="273.8" y="245" width="255.4" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="276.76" y="255.5" >std::lock_guard&lt;std::mutex&gt;::~lock..</text>
+</g>
+<g >
+<title>std::mutex::unlock (1,909,090,890 samples, 22.24%)</title><rect x="867.9" y="229" width="262.4" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="870.93" y="239.5" >std::mutex::unlock</text>
+</g>
+<g >
+<title>__memmove_avx_unaligned_erms (60,606,060 samples, 0.71%)</title><rect x="661.1" y="245" width="8.3" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="664.08" y="255.5" ></text>
+</g>
+<g >
+<title>native_queued_spin_lock_slowpath (20,202,020 samples, 0.24%)</title><rect x="450.1" y="69" width="2.7" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="453.07" y="79.5" ></text>
+</g>
+<g >
+<title>futex_wake (90,909,090 samples, 1.06%)</title><rect x="445.9" y="101" width="12.5" height="15.0" fill="rgb(219,65,15)" rx="2" ry="2" />
+<text  x="448.91" y="111.5" ></text>
+</g>
+<g >
+<title>[main] (20,202,020 samples, 0.24%)</title><rect x="290.4" y="197" width="2.8" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="293.42" y="207.5" ></text>
+</g>
+<g >
+<title>__gthread_mutex_unlock (1,878,787,860 samples, 21.88%)</title><rect x="872.1" y="213" width="258.2" height="15.0" fill="rgb(212,32,7)" rx="2" ry="2" />
+<text  x="875.09" y="223.5" >__gthread_mutex_unlock</text>
+</g>
+<g >
+<title>futex_wait_setup (101,010,100 samples, 1.18%)</title><rect x="219.6" y="85" width="13.9" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="222.62" y="95.5" ></text>
+</g>
+<g >
+<title>__gthread_mutex_lock (1,262,626,250 samples, 14.71%)</title><rect x="688.8" y="213" width="173.6" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="691.85" y="223.5" >__gthread_mutex_lock</text>
+</g>
+<g >
+<title>Consumer (20,202,020 samples, 0.24%)</title><rect x="16.9" y="405" width="2.8" height="15.0" fill="rgb(211,29,7)" rx="2" ry="2" />
+<text  x="19.94" y="415.5" ></text>
+</g>
+<g >
+<title>syscall_enter_from_user_mode (474,747,470 samples, 5.53%)</title><rect x="461.2" y="133" width="65.2" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="464.18" y="143.5" >syscall..</text>
+</g>
+<g >
+<title>__lll_lock_wait (727,272,720 samples, 8.47%)</title><rect x="752.7" y="181" width="100.0" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="755.71" y="191.5" >__lll_lock_w..</text>
+</g>
+<g >
+<title>__x64_sys_futex (121,212,120 samples, 1.41%)</title><rect x="216.8" y="133" width="16.7" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="219.85" y="143.5" ></text>
+</g>
+<g >
+<title>_raw_spin_lock (10,101,010 samples, 0.12%)</title><rect x="232.1" y="69" width="1.4" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="235.12" y="79.5" ></text>
+</g>
+<g >
+<title>__gthread_mutex_lock (1,222,222,210 samples, 14.24%)</title><rect x="105.8" y="213" width="168.0" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="108.79" y="223.5" >__gthread_mutex_lock</text>
+</g>
+<g >
+<title>std::lock_guard&lt;std::mutex&gt;::lock_guard (30,303,030 samples, 0.35%)</title><rect x="11.4" y="389" width="4.2" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="14.39" y="399.5" ></text>
+</g>
+<g >
+<title>__gthread_active_p (20,202,020 samples, 0.24%)</title><rect x="526.4" y="197" width="2.8" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="529.42" y="207.5" ></text>
+</g>
+<g >
+<title>std::__invoke_impl&lt;void, void  (8,474,747,390 samples, 98.71%)</title><rect x="19.7" y="293" width="1164.7" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="22.72" y="303.5" >std::__invoke_impl&lt;void, void </text>
+</g>
+<g >
+<title>std::__atomic_base&lt;unsigned long&gt;::load (131,313,130 samples, 1.53%)</title><rect x="541.7" y="261" width="18.0" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="544.69" y="271.5" ></text>
+</g>
+<g >
+<title>std::lock_guard&lt;std::mutex&gt;::~lock_guard (1,949,494,930 samples, 22.71%)</title><rect x="862.4" y="245" width="267.9" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="865.38" y="255.5" >std::lock_guard&lt;std::mutex&gt;::~lock_..</text>
+</g>
+<g >
+<title>_raw_spin_lock (10,101,010 samples, 0.12%)</title><rect x="813.8" y="85" width="1.4" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="816.79" y="95.5" ></text>
+</g>
+<g >
+<title>__pthread_mutex_unlock_usercnt (1,686,868,670 samples, 19.65%)</title><rect x="294.6" y="181" width="231.8" height="15.0" fill="rgb(253,221,52)" rx="2" ry="2" />
+<text  x="297.59" y="191.5" >__pthread_mutex_unlock_usercnt</text>
+</g>
+<g >
+<title>__gthread_mutex_unlock (1,797,979,780 samples, 20.94%)</title><rect x="282.1" y="213" width="247.1" height="15.0" fill="rgb(212,32,7)" rx="2" ry="2" />
+<text  x="285.09" y="223.5" >__gthread_mutex_unlock</text>
+</g>
+<g >
+<title>syscall_enter_from_user_mode (222,222,220 samples, 2.59%)</title><rect x="822.1" y="133" width="30.6" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="825.12" y="143.5" >sy..</text>
+</g>
+<g >
+<title>__get_user_nocheck_4 (10,101,010 samples, 0.12%)</title><rect x="812.4" y="85" width="1.4" height="15.0" fill="rgb(232,125,30)" rx="2" ry="2" />
+<text  x="815.40" y="95.5" ></text>
+</g>
+<g >
+<title>CRingBuff::PutData (3,747,474,710 samples, 43.65%)</title><rect x="615.3" y="261" width="515.0" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="618.27" y="271.5" >CRingBuff::PutData</text>
+</g>
+<g >
+<title>_raw_spin_lock (40,404,040 samples, 0.47%)</title><rect x="440.4" y="101" width="5.5" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="443.35" y="111.5" ></text>
+</g>
+<g >
+<title>std::mutex::unlock (1,818,181,800 samples, 21.18%)</title><rect x="279.3" y="229" width="249.9" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="282.32" y="239.5" >std::mutex::unlock</text>
+</g>
+<g >
+<title>native_queued_spin_lock_slowpath (20,202,020 samples, 0.24%)</title><rect x="1076.2" y="69" width="2.7" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="1079.16" y="79.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (10,101,010 samples, 0.12%)</title><rect x="606.9" y="229" width="1.4" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="609.94" y="239.5" ></text>
+</g>
+<g >
+<title>std::operator&amp; (10,101,010 samples, 0.12%)</title><rect x="18.3" y="373" width="1.4" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="21.33" y="383.5" ></text>
+</g>
+<g >
+<title>Producer (4,191,919,150 samples, 48.82%)</title><rect x="608.3" y="277" width="576.1" height="15.0" fill="rgb(213,37,8)" rx="2" ry="2" />
+<text  x="611.33" y="287.5" >Producer</text>
+</g>
+<g >
+<title>std::__atomic_base&lt;unsigned long&gt;::operator+= (393,939,390 samples, 4.59%)</title><rect x="1130.3" y="261" width="54.1" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="1133.31" y="271.5" >std::..</text>
+</g>
+<g >
+<title>futex_wait (111,111,110 samples, 1.29%)</title><rect x="218.2" y="101" width="15.3" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="221.24" y="111.5" ></text>
+</g>
+<g >
+<title>do_futex (70,707,070 samples, 0.82%)</title><rect x="812.4" y="117" width="9.7" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="815.40" y="127.5" ></text>
+</g>
+<g >
+<title>std::mutex::lock (1,313,131,300 samples, 15.29%)</title><rect x="681.9" y="229" width="180.5" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="684.91" y="239.5" >std::mutex::lock</text>
+</g>
+<g >
+<title>Consumer (4,282,828,240 samples, 49.88%)</title><rect x="19.7" y="277" width="588.6" height="15.0" fill="rgb(211,29,7)" rx="2" ry="2" />
+<text  x="22.72" y="287.5" >Consumer</text>
+</g>
+<g >
+<title>__GI___pthread_mutex_lock (1,151,515,140 samples, 13.41%)</title><rect x="111.3" y="197" width="158.3" height="15.0" fill="rgb(248,202,48)" rx="2" ry="2" />
+<text  x="114.34" y="207.5" >__GI___pthread_mutex..</text>
+</g>
+<g >
+<title>futex_wake (40,404,040 samples, 0.47%)</title><rect x="1073.4" y="101" width="5.5" height="15.0" fill="rgb(219,65,15)" rx="2" ry="2" />
+<text  x="1076.39" y="111.5" ></text>
+</g>
+<g >
+<title>_raw_spin_lock (10,101,010 samples, 0.12%)</title><rect x="1072.0" y="101" width="1.4" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="1075.00" y="111.5" ></text>
+</g>
+<g >
+<title>finish_task_switch (10,101,010 samples, 0.12%)</title><rect x="815.2" y="37" width="1.4" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="818.18" y="47.5" ></text>
+</g>
+<g >
+<title>std::lock_guard&lt;std::mutex&gt;::lock_guard (1,313,131,300 samples, 15.29%)</title><rect x="93.3" y="245" width="180.5" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="96.29" y="255.5" >std::lock_guard&lt;std::mu..</text>
+</g>
+<g >
+<title>CRingBuff::GetData (10,101,010 samples, 0.12%)</title><rect x="16.9" y="389" width="1.4" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="19.94" y="399.5" ></text>
+</g>
+<g >
+<title>[main] (30,303,030 samples, 0.35%)</title><rect x="884.6" y="197" width="4.2" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="887.59" y="207.5" ></text>
+</g>
+<g >
+<title>_raw_spin_lock (20,202,020 samples, 0.24%)</title><rect x="1076.2" y="85" width="2.7" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="1079.16" y="95.5" ></text>
+</g>
+</g>
+</svg>
