@@ -15,7 +15,7 @@ std::atomic<std::uint64_t> countConsume{0};
 
 void Producer() {
     auto start = std::chrono::high_resolution_clock::now(); 
-    std::uint8_t data[32] = "qwertyuiopasdfghjklzxcvbnm12345";
+    std::uint8_t data[64] = "qwertyuiopasdfghjklzxcvbnm12345qwertyuiopasdfghjklzxcvbnm123456";
     for (int i = 0; i < EPOCH; ++i) {
         while (!buff->PutData(data, sizeof(data))) {
             std::cout << "P yield: " << std::endl;
@@ -28,19 +28,19 @@ void Producer() {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     double duration_sec = duration_ms.count() / 1000.0;
-    double total_mb = EPOCH * 32 / (1024.0 * 1024.0);
+    double total_mb = EPOCH * 64 / (1024.0 * 1024.0);
     double mb_per_sec = total_mb / duration_sec;
 
     // std::cout << std::fixed << std::setprecision(2);
     std::cout << "Producer: " 
               << duration_ms.count() << " ms | "
-              << total_mb << " MB | "
-              << mb_per_sec << " MB/s\n";
+              << total_mb << " Mb | "
+              << mb_per_sec << " Mb/s\n";
 }
 
 void Consumer() {
     auto start = std::chrono::high_resolution_clock::now();
-    std::uint8_t data[32];
+    std::uint8_t data[64];
     while (countConsume.load(std::memory_order_acquire) < 32 * EPOCH) {
         std::uint64_t len = sizeof(data);
         if (buff->GetData(data, len)) {
@@ -55,17 +55,17 @@ void Consumer() {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     double duration_sec = duration_ms.count() / 1000.0;
-    double total_mb = EPOCH * 32 / (1024.0 * 1024.0);
+    double total_mb = EPOCH * 64 / (1024.0 * 1024.0);
     double mb_per_sec = total_mb / duration_sec;
 
     std::cout << "Consumer: " 
               << duration_ms.count() << " ms | "
-              << total_mb << " MB | "
-              << mb_per_sec << " MB/s\n";
+              << total_mb << " Mb | "
+              << mb_per_sec << " Mb/s\n";
 }
 
 int main() {
-    buff = new CRingBuff(1024 * 16);
+    buff = new CRingBuff(1024);
 
     std::thread t1(Producer);
     std::thread t2(Consumer);

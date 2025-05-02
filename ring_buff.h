@@ -77,8 +77,9 @@ bool CRingBuff::PutData(const std::uint8_t *data, const std::uint64_t len) {
         return false;
     }
     
-    std::lock_guard<std::mutex> lock(m_mtxOperate);
     const std::uint64_t capacity = m_mask + 1;
+    std::lock_guard<std::mutex> lock(m_mtxOperate);
+    
     const std::uint64_t head = m_head & m_mask;
     const std::uint64_t tail = m_tail & m_mask;
     const std::uint64_t free_space = capacity - (tail - head);
@@ -106,10 +107,10 @@ bool CRingBuff::GetData(std::uint8_t *outData, std::uint64_t & len) {
         std::cout << m_disposed << " C " << len <<std::endl;
         return false;
     }
-    
+
+    const uint64_t capacity = m_mask + 1;    
     std::lock_guard<std::mutex> lock(m_mtxOperate);
-    
-    const uint64_t capacity = m_mask + 1;
+
     const uint64_t head = m_head;
     const uint64_t tail = m_tail;
     const uint64_t availData = (tail - head);
