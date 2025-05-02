@@ -3,6 +3,9 @@
  * @Autor: Xjj
  */
 
+#ifndef CRING_BUFF_H
+#define CRING_BUFF_H
+
 #include <iostream>
 #include <cstdint>
 #include <cstring>
@@ -59,10 +62,11 @@ std::uint64_t CRingBuff::NextPowerOfTwo(std::uint64_t size) {
 } 
 
 std::uint64_t CRingBuff::GetLen() {
-    m_mtxOperate.lock();
+    // m_spinLock.lock();
+    std::lock_guard<std::mutex> lock(m_mtxOperate);
     uint64_t head = m_head;
     uint64_t tail = m_tail;
-    m_mtxOperate.unlock();
+    // m_spinLock.unlock();
     
     return (head >= tail) ? (head - tail) : (UINT64_MAX - tail + head + 1);
 }
@@ -79,7 +83,7 @@ bool CRingBuff::PutData(const std::uint8_t *data, const std::uint64_t len) {
     
     const std::uint64_t capacity = m_mask + 1;
     std::lock_guard<std::mutex> lock(m_mtxOperate);
-    
+    // m_spinLock.lock();
     const std::uint64_t head = m_head & m_mask;
     const std::uint64_t tail = m_tail & m_mask;
     const std::uint64_t free_space = capacity - (tail - head);
@@ -99,6 +103,7 @@ bool CRingBuff::PutData(const std::uint8_t *data, const std::uint64_t len) {
     }
 
     m_tail = tail + len;
+    // m_spinLock.unlock();
     return true;
 }
 
@@ -110,7 +115,7 @@ bool CRingBuff::GetData(std::uint8_t *outData, std::uint64_t & len) {
 
     const uint64_t capacity = m_mask + 1;    
     std::lock_guard<std::mutex> lock(m_mtxOperate);
-
+    // m_spinLock.lock();
     const uint64_t head = m_head;
     const uint64_t tail = m_tail;
     const uint64_t availData = (tail - head);
@@ -133,8 +138,8 @@ bool CRingBuff::GetData(std::uint8_t *outData, std::uint64_t & len) {
     }
 
     m_head = head + len;
+    // m_spinLock.unlock();
     return true;
 }
 
-
-
+#endif //CRING_BUFF_H

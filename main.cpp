@@ -34,8 +34,8 @@ void Producer() {
     // std::cout << std::fixed << std::setprecision(2);
     std::cout << "Producer: " 
               << duration_ms.count() << " ms | "
-              << total_mb << " Mb | "
-              << mb_per_sec << " Mb/s\n";
+              << total_mb << " MB | "
+              << mb_per_sec << " MB/s\n";
 }
 
 void Consumer() {
@@ -60,8 +60,8 @@ void Consumer() {
 
     std::cout << "Consumer: " 
               << duration_ms.count() << " ms | "
-              << total_mb << " Mb | "
-              << mb_per_sec << " Mb/s\n";
+              << total_mb << " MB | "
+              << mb_per_sec << " MB/s\n";
 }
 
 int main() {
