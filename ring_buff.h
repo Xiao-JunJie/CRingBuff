@@ -6,6 +6,7 @@
 #ifndef CRING_BUFF_H
 #define CRING_BUFF_H
 
+#include "spin_lock.h"
 #include <iostream>
 #include <cstdint>
 #include <cstring>
@@ -32,7 +33,8 @@ private:
     alignas(64) std::uint64_t   m_mask;
     alignas(64) bool            m_disposed;               
     alignas(64) std::uint8_t*   m_data;
-    alignas(64) std::mutex      m_mtxOperate; 
+    // alignas(64) std::mutex      m_mtxOperate;
+    alignas(64) SpinLock        m_spinLock; 
 };
 
 CRingBuff::CRingBuff(std::uint64_t size) : m_disposed(false), m_head(0), m_tail(0)
@@ -62,11 +64,11 @@ std::uint64_t CRingBuff::NextPowerOfTwo(std::uint64_t size) {
 } 
 
 std::uint64_t CRingBuff::GetLen() {
-    // m_spinLock.lock();
-    std::lock_guard<std::mutex> lock(m_mtxOperate);
+    // std::lock_guard<std::mutex> lock(m_mtxOperate);
+    m_spinLock.lock();
     uint64_t head = m_head;
     uint64_t tail = m_tail;
-    // m_spinLock.unlock();
+    m_spinLock.unlock();
     
     return (head >= tail) ? (head - tail) : (UINT64_MAX - tail + head + 1);
 }
@@ -82,12 +84,15 @@ bool CRingBuff::PutData(const std::uint8_t *data, const std::uint64_t len) {
     }
     
     const std::uint64_t capacity = m_mask + 1;
-    std::lock_guard<std::mutex> lock(m_mtxOperate);
-    // m_spinLock.lock();
+    
+    // std::lock_guard<std::mutex> lock(m_mtxOperate);
+    m_spinLock.lock();
     const std::uint64_t head = m_head & m_mask;
     const std::uint64_t tail = m_tail & m_mask;
-    const std::uint64_t free_space = capacity - (tail - head);
+    m_tail = tail + len;
+    m_spinLock.unlock();
 
+    const std::uint64_t    free_space = capacity - (tail - head);
     if (len > free_space) {
         std::cout << free_space << " P " << head << " P " << tail <<std::endl;
         return false;
@@ -102,8 +107,6 @@ bool CRingBuff::PutData(const std::uint8_t *data, const std::uint64_t len) {
         memcpy(m_data, data + first_part, len - first_part);
     }
 
-    m_tail = tail + len;
-    // m_spinLock.unlock();
     return true;
 }
 
@@ -114,12 +117,14 @@ bool CRingBuff::GetData(std::uint8_t *outData, std::uint64_t & len) {
     }
 
     const uint64_t capacity = m_mask + 1;    
-    std::lock_guard<std::mutex> lock(m_mtxOperate);
-    // m_spinLock.lock();
+    // std::lock_guard<std::mutex> lock(m_mtxOperate);
+    m_spinLock.lock();
     const uint64_t head = m_head;
     const uint64_t tail = m_tail;
-    const uint64_t availData = (tail - head);
+    m_head = head + len;
+    m_spinLock.unlock();
 
+    const uint64_t availData = (tail - head);
     if (availData == 0) {
         len = 0;
         std::cout << availData << " C " << head << " C " << tail <<std::endl;
@@ -137,8 +142,6 @@ bool CRingBuff::GetData(std::uint8_t *outData, std::uint64_t & len) {
         memcpy(outData + first_part, m_data, len - first_part);
     }
 
-    m_head = head + len;
-    // m_spinLock.unlock();
     return true;
 }
 
