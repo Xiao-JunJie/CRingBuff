@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" width="1200" height="326" onload="init(evt)" viewBox="0 0 1200 326" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg version="1.1" width="1200" height="294" onload="init(evt)" viewBox="0 0 1200 294" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
 <!-- NOTES:  -->
 <defs>
@@ -422,161 +422,145 @@
 	}
 ]]>
 </script>
-<rect x="0.0" y="0" width="1200.0" height="326.0" fill="url(#background)"  />
+<rect x="0.0" y="0" width="1200.0" height="294.0" fill="url(#background)"  />
 <text id="title" x="600.00" y="24" >Flame Graph</text>
-<text id="details" x="10.00" y="309" > </text>
+<text id="details" x="10.00" y="277" > </text>
 <text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
 <text id="search" x="1090.00" y="24" >Search</text>
 <text id="ignorecase" x="1174.00" y="24" >ic</text>
-<text id="matched" x="1090.00" y="309" > </text>
+<text id="matched" x="1090.00" y="277" > </text>
 <g id="frames">
 <g >
-<title>std::operator&amp; (30,303,030 samples, 1.04%)</title><rect x="206.7" y="69" width="12.3" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
-<text  x="209.67" y="79.5" ></text>
+<title>CRingBuff::GetData (20,202,020 samples, 0.40%)</title><rect x="12.4" y="197" width="4.8" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="15.38" y="207.5" ></text>
 </g>
 <g >
-<title>std::__atomic_base&lt;unsigned long&gt;::operator+= (434,343,430 samples, 14.93%)</title><rect x="1013.8" y="101" width="176.2" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
-<text  x="1016.82" y="111.5" >std::__atomic_base&lt;uns..</text>
+<title>std::__atomic_base&lt;unsigned long&gt;::store (585,858,580 samples, 11.72%)</title><rect x="300.8" y="53" width="138.3" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="303.83" y="63.5" >std::__atomic_bas..</text>
 </g>
 <g >
-<title>irqentry_exit_to_user_mode (10,101,010 samples, 0.35%)</title><rect x="1009.7" y="53" width="4.1" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
-<text  x="1012.72" y="63.5" ></text>
+<title>std::__atomic_base&lt;unsigned long&gt;::load (303,030,300 samples, 6.06%)</title><rect x="229.3" y="53" width="71.5" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="232.31" y="63.5" >std::__a..</text>
 </g>
 <g >
-<title>std::operator&amp; (40,404,040 samples, 1.39%)</title><rect x="784.4" y="69" width="16.4" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
-<text  x="787.38" y="79.5" ></text>
+<title>std::__invoke&lt;void  (4,969,696,920 samples, 99.39%)</title><rect x="17.2" y="117" width="1172.8" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="20.15" y="127.5" >std::__invoke&lt;void </text>
 </g>
 <g >
-<title>std::__atomic_base&lt;unsigned long&gt;::load (80,808,080 samples, 2.78%)</title><rect x="395.1" y="101" width="32.8" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
-<text  x="398.14" y="111.5" >st..</text>
+<title>Producer (2,494,949,470 samples, 49.90%)</title><rect x="601.2" y="85" width="588.8" height="15.0" fill="rgb(213,37,8)" rx="2" ry="2" />
+<text  x="604.19" y="95.5" >Producer</text>
 </g>
 <g >
-<title>__memmove_avx_unaligned_erms (50,505,050 samples, 1.74%)</title><rect x="702.4" y="85" width="20.5" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
-<text  x="705.43" y="95.5" ></text>
+<title>Consumer (2,474,747,450 samples, 49.49%)</title><rect x="17.2" y="85" width="584.0" height="15.0" fill="rgb(211,29,7)" rx="2" ry="2" />
+<text  x="20.15" y="95.5" >Consumer</text>
 </g>
 <g >
-<title>std::__atomic_base&lt;unsigned long&gt;::load (191,919,190 samples, 6.60%)</title><rect x="722.9" y="85" width="77.9" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
-<text  x="725.92" y="95.5" >std::__a..</text>
-</g>
-<g >
-<title>__memmove_avx_unaligned_erms (141,414,140 samples, 4.86%)</title><rect x="100.1" y="85" width="57.4" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
-<text  x="103.14" y="95.5" >__memm..</text>
-</g>
-<g >
-<title>irqentry_exit (10,101,010 samples, 0.35%)</title><rect x="1009.7" y="69" width="4.1" height="15.0" fill="rgb(219,66,15)" rx="2" ry="2" />
-<text  x="1012.72" y="79.5" ></text>
-</g>
-<g >
-<title>std::__atomic_base&lt;unsigned long&gt;::store (515,151,510 samples, 17.71%)</title><rect x="800.8" y="85" width="208.9" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
-<text  x="803.76" y="95.5" >std::__atomic_base&lt;unsigned..</text>
-</g>
-<g >
-<title>std::operator&amp; (20,202,020 samples, 0.69%)</title><rect x="10.0" y="213" width="8.2" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
-<text  x="13.00" y="223.5" ></text>
-</g>
-<g >
-<title>std::thread::_Invoker&lt;std::tuple&lt;void  (2,888,888,860 samples, 99.31%)</title><rect x="18.2" y="181" width="1171.8" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
-<text  x="21.19" y="191.5" >std::thread::_Invoker&lt;std::tuple&lt;void </text>
-</g>
-<g >
-<title>Consumer (1,242,424,230 samples, 42.71%)</title><rect x="18.2" y="117" width="504.0" height="15.0" fill="rgb(211,29,7)" rx="2" ry="2" />
-<text  x="21.19" y="127.5" >Consumer</text>
-</g>
-<g >
-<title>std::__invoke_impl&lt;void, void  (2,888,888,860 samples, 99.31%)</title><rect x="18.2" y="133" width="1171.8" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
-<text  x="21.19" y="143.5" >std::__invoke_impl&lt;void, void </text>
-</g>
-<g >
-<title>std::__atomic_base&lt;unsigned long&gt;::load (20,202,020 samples, 0.69%)</title><rect x="10.0" y="229" width="8.2" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
-<text  x="13.00" y="239.5" ></text>
-</g>
-<g >
-<title>std::__atomic_base&lt;unsigned long&gt;::load (151,515,150 samples, 5.21%)</title><rect x="157.5" y="85" width="61.5" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
-<text  x="160.50" y="95.5" >std::_..</text>
-</g>
-<g >
-<title>all (2,909,090,880 samples, 100%)</title><rect x="10.0" y="277" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
-<text  x="13.00" y="287.5" ></text>
-</g>
-<g >
-<title>start_thread (2,888,888,860 samples, 99.31%)</title><rect x="18.2" y="229" width="1171.8" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
-<text  x="21.19" y="239.5" >start_thread</text>
-</g>
-<g >
-<title>CRingBuff::GetData (898,989,890 samples, 30.90%)</title><rect x="30.5" y="101" width="364.6" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
-<text  x="33.49" y="111.5" >CRingBuff::GetData</text>
-</g>
-<g >
-<title>std::__atomic_base&lt;unsigned long&gt;::operator+= (232,323,230 samples, 7.99%)</title><rect x="427.9" y="101" width="94.3" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
-<text  x="430.92" y="111.5" >std::__atom..</text>
-</g>
-<g >
-<title>__GI___clone (2,888,888,860 samples, 99.31%)</title><rect x="18.2" y="245" width="1171.8" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
-<text  x="21.19" y="255.5" >__GI___clone</text>
-</g>
-<g >
-<title>Consumer (20,202,020 samples, 0.69%)</title><rect x="10.0" y="245" width="8.2" height="15.0" fill="rgb(211,29,7)" rx="2" ry="2" />
+<title>all (4,999,999,950 samples, 100%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
 <text  x="13.00" y="255.5" ></text>
 </g>
 <g >
-<title>sysvec_call_function_single (10,101,010 samples, 0.35%)</title><rect x="1009.7" y="85" width="4.1" height="15.0" fill="rgb(221,78,18)" rx="2" ry="2" />
-<text  x="1012.72" y="95.5" ></text>
+<title>CRingBuff::PutData (1,616,161,600 samples, 32.32%)</title><rect x="625.0" y="69" width="381.4" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="628.03" y="79.5" >CRingBuff::PutData</text>
 </g>
 <g >
-<title>asm_sysvec_call_function_single (10,101,010 samples, 0.35%)</title><rect x="1009.7" y="101" width="4.1" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
-<text  x="1012.72" y="111.5" ></text>
+<title>std::operator&amp; (60,606,060 samples, 1.21%)</title><rect x="286.5" y="37" width="14.3" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="289.53" y="47.5" ></text>
 </g>
 <g >
-<title>Producer (1,646,464,630 samples, 56.60%)</title><rect x="522.2" y="117" width="667.8" height="15.0" fill="rgb(213,37,8)" rx="2" ry="2" />
-<text  x="525.15" y="127.5" >Producer</text>
+<title>[main] (30,303,030 samples, 0.61%)</title><rect x="150.6" y="53" width="7.2" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="153.65" y="63.5" ></text>
 </g>
 <g >
-<title>main (2,909,090,880 samples, 100.00%)</title><rect x="10.0" y="261" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
-<text  x="13.00" y="271.5" >main</text>
+<title>std::__atomic_base&lt;unsigned long&gt;::load (464,646,460 samples, 9.29%)</title><rect x="753.8" y="53" width="109.6" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="756.76" y="63.5" >std::__atomic..</text>
 </g>
 <g >
-<title>[libstdc++.so.6.0.28] (2,888,888,860 samples, 99.31%)</title><rect x="18.2" y="213" width="1171.8" height="15.0" fill="rgb(240,162,38)" rx="2" ry="2" />
-<text  x="21.19" y="223.5" >[libstdc++.so.6.0.28]</text>
+<title>std::thread::_Invoker&lt;std::tuple&lt;void  (4,969,696,920 samples, 99.39%)</title><rect x="17.2" y="149" width="1172.8" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="20.15" y="159.5" >std::thread::_Invoker&lt;std::tuple&lt;void </text>
 </g>
 <g >
-<title>std::operator&amp; (20,202,020 samples, 0.69%)</title><rect x="1001.5" y="69" width="8.2" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
-<text  x="1004.53" y="79.5" ></text>
+<title>__GI___clone (4,969,696,920 samples, 99.39%)</title><rect x="17.2" y="213" width="1172.8" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="20.15" y="223.5" >__GI___clone</text>
 </g>
 <g >
-<title>std::operator&amp; (10,101,010 samples, 0.35%)</title><rect x="423.8" y="85" width="4.1" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
-<text  x="426.82" y="95.5" ></text>
+<title>main (4,999,999,950 samples, 100.00%)</title><rect x="10.0" y="229" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="13.00" y="239.5" >main</text>
 </g>
 <g >
-<title>std::__atomic_base&lt;unsigned long&gt;::store (363,636,360 samples, 12.50%)</title><rect x="219.0" y="85" width="147.5" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
-<text  x="221.96" y="95.5" >std::__atomic_base..</text>
+<title>__memmove_avx_unaligned_erms (131,313,130 samples, 2.63%)</title><rect x="722.8" y="53" width="31.0" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="725.77" y="63.5" >__..</text>
 </g>
 <g >
-<title>CRingBuff::PutData (1,151,515,140 samples, 39.58%)</title><rect x="542.6" y="101" width="467.1" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
-<text  x="545.64" y="111.5" >CRingBuff::PutData</text>
+<title>std::operator&amp; (60,606,060 samples, 1.21%)</title><rect x="849.1" y="37" width="14.3" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="852.11" y="47.5" ></text>
 </g>
 <g >
-<title>std::operator&amp; (10,101,010 samples, 0.35%)</title><rect x="362.4" y="69" width="4.1" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
-<text  x="365.36" y="79.5" ></text>
+<title>std::operator&amp; (10,101,010 samples, 0.20%)</title><rect x="10.0" y="181" width="2.4" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="13.00" y="191.5" ></text>
 </g>
 <g >
-<title>std::__invoke&lt;void  (2,888,888,860 samples, 99.31%)</title><rect x="18.2" y="149" width="1171.8" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
-<text  x="21.19" y="159.5" >std::__invoke&lt;void </text>
+<title>[libstdc++.so.6.0.28] (4,969,696,920 samples, 99.39%)</title><rect x="17.2" y="181" width="1172.8" height="15.0" fill="rgb(240,162,38)" rx="2" ry="2" />
+<text  x="20.15" y="191.5" >[libstdc++.so.6.0.28]</text>
 </g>
 <g >
-<title>exit_to_user_mode_prepare (10,101,010 samples, 0.35%)</title><rect x="1009.7" y="37" width="4.1" height="15.0" fill="rgb(228,108,25)" rx="2" ry="2" />
-<text  x="1012.72" y="47.5" ></text>
+<title>std::thread::_Invoker&lt;std::tuple&lt;void  (4,969,696,920 samples, 99.39%)</title><rect x="17.2" y="133" width="1172.8" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="20.15" y="143.5" >std::thread::_Invoker&lt;std::tuple&lt;void </text>
 </g>
 <g >
-<title>std::thread::_State_impl&lt;std::thread::_Invoker&lt;std::tuple&lt;void  (2,888,888,860 samples, 99.31%)</title><rect x="18.2" y="197" width="1171.8" height="15.0" fill="rgb(234,137,32)" rx="2" ry="2" />
-<text  x="21.19" y="207.5" >std::thread::_State_impl&lt;std::thread::_Invoker&lt;std::tuple&lt;void </text>
+<title>std::operator&amp; (10,101,010 samples, 0.20%)</title><rect x="1004.1" y="37" width="2.3" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="1007.06" y="47.5" ></text>
 </g>
 <g >
-<title>std::min&lt;unsigned long&gt; (70,707,070 samples, 2.43%)</title><rect x="366.5" y="85" width="28.6" height="15.0" fill="rgb(235,140,33)" rx="2" ry="2" />
-<text  x="369.46" y="95.5" >st..</text>
+<title>Consumer (20,202,020 samples, 0.40%)</title><rect x="12.4" y="213" width="4.8" height="15.0" fill="rgb(211,29,7)" rx="2" ry="2" />
+<text  x="15.38" y="223.5" ></text>
 </g>
 <g >
-<title>std::thread::_Invoker&lt;std::tuple&lt;void  (2,888,888,860 samples, 99.31%)</title><rect x="18.2" y="165" width="1171.8" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
-<text  x="21.19" y="175.5" >std::thread::_Invoker&lt;std::tuple&lt;void </text>
+<title>CRingBuff::PutData (10,101,010 samples, 0.20%)</title><rect x="10.0" y="213" width="2.4" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="13.00" y="223.5" ></text>
+</g>
+<g >
+<title>std::__atomic_base&lt;unsigned long&gt;::operator+= (515,151,510 samples, 10.30%)</title><rect x="479.6" y="69" width="121.6" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="482.62" y="79.5" >std::__atomic_b..</text>
+</g>
+<g >
+<title>CRingBuff::GetData (1,666,666,650 samples, 33.33%)</title><rect x="45.8" y="69" width="393.3" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="48.76" y="79.5" >CRingBuff::GetData</text>
+</g>
+<g >
+<title>std::__atomic_base&lt;unsigned long&gt;::load (171,717,170 samples, 3.43%)</title><rect x="439.1" y="69" width="40.5" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="442.09" y="79.5" >std..</text>
+</g>
+<g >
+<title>std::__atomic_base&lt;unsigned long&gt;::load (10,101,010 samples, 0.20%)</title><rect x="10.0" y="197" width="2.4" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="13.00" y="207.5" ></text>
+</g>
+<g >
+<title>__memmove_avx_unaligned_erms (303,030,300 samples, 6.06%)</title><rect x="157.8" y="53" width="71.5" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="160.80" y="63.5" >__memmov..</text>
+</g>
+<g >
+<title>start_thread (4,969,696,920 samples, 99.39%)</title><rect x="17.2" y="197" width="1172.8" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="20.15" y="207.5" >start_thread</text>
+</g>
+<g >
+<title>std::thread::_State_impl&lt;std::thread::_Invoker&lt;std::tuple&lt;void  (4,969,696,920 samples, 99.39%)</title><rect x="17.2" y="165" width="1172.8" height="15.0" fill="rgb(234,137,32)" rx="2" ry="2" />
+<text  x="20.15" y="175.5" >std::thread::_State_impl&lt;std::thread::_Invoker&lt;std::tuple&lt;void </text>
+</g>
+<g >
+<title>std::operator&amp; (30,303,030 samples, 0.61%)</title><rect x="472.5" y="53" width="7.1" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="475.46" y="63.5" ></text>
+</g>
+<g >
+<title>std::__atomic_base&lt;unsigned long&gt;::operator+= (777,777,770 samples, 15.56%)</title><rect x="1006.4" y="69" width="183.6" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="1009.44" y="79.5" >std::__atomic_base&lt;unsi..</text>
+</g>
+<g >
+<title>std::__invoke_impl&lt;void, void  (4,969,696,920 samples, 99.39%)</title><rect x="17.2" y="101" width="1172.8" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="20.15" y="111.5" >std::__invoke_impl&lt;void, void </text>
+</g>
+<g >
+<title>std::__atomic_base&lt;unsigned long&gt;::store (606,060,600 samples, 12.12%)</title><rect x="863.4" y="53" width="143.0" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="866.41" y="63.5" >std::__atomic_base..</text>
 </g>
 </g>
 </svg>

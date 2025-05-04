@@ -19,6 +19,13 @@ public:
     CRingBuff(std::uint64_t size);
     ~CRingBuff();
 
+    void* operator new(size_t size) {
+        return aligned_alloc(64, size); // 使用 64 字节对齐分配
+    }
+    void operator delete(void* ptr) {
+        free(ptr);                      // 使用对应的释放方式
+    }
+
 public:
     std::uint64_t GetLen();
     std::uint64_t GetCap();
@@ -34,11 +41,11 @@ private:
     alignas(64) std::uint64_t                m_mask;
     alignas(64) bool                         m_disposed;               
     alignas(64) std::uint8_t*                m_data;
-    // alignas(64) std::mutex                m_mtxOperate;
-    // alignas(64) SpinLock                  m_spinLock; 
+    // alignas(64) std::mutex                   m_mtxOperate;
+    alignas(64) SpinLock                  m_spinLock; 
 };
 
-CRingBuff::CRingBuff(std::uint64_t size) : m_disposed(false), m_head(0), m_tail(0)
+CRingBuff::CRingBuff(std::uint64_t size) : m_head(0), m_tail(0), m_disposed(false)
 {
     size = NextPowerOfTwo(size);
     m_data = new std::uint8_t[size];
@@ -71,7 +78,8 @@ std::uint64_t CRingBuff::GetLen() {
     uint64_t tail = m_tail.load(std::memory_order_acquire);
     // m_spinLock.unlock();
     
-    return (head >= tail) ? (head - tail) : (UINT64_MAX - tail + head + 1);
+    std::cout << "tail : " << tail << " head : " << head << std::endl;
+    return  tail - head;
 }
 
 std::uint64_t CRingBuff::GetCap() {
@@ -79,27 +87,25 @@ std::uint64_t CRingBuff::GetCap() {
 }
 
 bool CRingBuff::PutData(const std::uint8_t *data, const std::uint64_t len) {
-    if (m_disposed || len == 0 || data == nullptr) {
+    const std::uint64_t head = m_head.load(std::memory_order_acquire);
+    const std::uint64_t tail = m_tail.load(std::memory_order_acquire);
+    if (head > tail || m_disposed || len == 0 || data == nullptr) {
         std::cout << m_disposed << " P " << len <<std::endl;
         return false;
     }
-    
     const std::uint64_t capacity = m_mask + 1;
-    
     // std::lock_guard<std::mutex> lock(m_mtxOperate);
     // m_spinLock.lock();
-    const std::uint64_t head = m_head.load(std::memory_order_acquire) & m_mask;
-    const std::uint64_t tail = m_tail.load(std::memory_order_acquire) & m_mask;
+    // const std::uint64_t head = m_head.load(std::memory_order_acquire);
+    // const std::uint64_t tail = m_tail.load(std::memory_order_acquire);
+    const std::uint64_t    free_space = capacity - (tail - head);
+    if (len > free_space) {
+       // std::cout << free_space << " P " << head << " P " << tail <<std::endl;
+        return false;
+    }
     // m_tail = tail + len;
     m_tail.store(tail + len, std::memory_order_release);
     // m_spinLock.unlock();
-
-    const std::uint64_t    free_space = capacity - (tail - head);
-    if (len > free_space) {
-        std::cout << free_space << " P " << head << " P " << tail <<std::endl;
-        return false;
-    }
-
     std::uint64_t write_pos = tail & m_mask;
     if (write_pos + len <= capacity) {
         memcpy(m_data + write_pos, data, len);
@@ -113,30 +119,28 @@ bool CRingBuff::PutData(const std::uint8_t *data, const std::uint64_t len) {
 }
 
 bool CRingBuff::GetData(std::uint8_t *outData, std::uint64_t & len) {
-    if (m_disposed || len == 0) {
+    const uint64_t head = m_head.load(std::memory_order_acquire);
+    const uint64_t tail = m_tail.load(std::memory_order_acquire);
+    if (head > tail || m_disposed || len == 0) {
         std::cout << m_disposed << " C " << len <<std::endl;
         return false;
     }
-
     const uint64_t capacity = m_mask + 1;    
     // std::lock_guard<std::mutex> lock(m_mtxOperate);
     // m_spinLock.lock();
-    const uint64_t head = m_head.load(std::memory_order_acquire);
-    const uint64_t tail = m_tail.load(std::memory_order_acquire);
-    // m_head = head + len;
-    m_head.store(head + len, std::memory_order_release);
-    // m_spinLock.unlock();
-
+    // const uint64_t head = m_head.load(std::memory_order_acquire);
+    // const uint64_t tail = m_tail.load(std::memory_order_acquire);
     const uint64_t availData = (tail - head);
-    if (availData == 0) {
+    if (availData < len) {
         len = 0;
-        std::cout << availData << " C " << head << " C " << tail <<std::endl;
+       // std::cout << availData << " C " << head << " C " << tail <<std::endl;
         return false;
     }
-
-    len = std::min(len, availData);
+    // m_head = head + len;
+    m_head.store(head + len, std::memory_order_release);
+    // std::cout << "m_head" << m_head << std::endl;
+    // m_spinLock.unlock();
     uint64_t read_pos = head & m_mask;
-
     if (read_pos + len <= capacity) {
         memcpy(outData, m_data + read_pos, len);
     } else {
@@ -144,7 +148,6 @@ bool CRingBuff::GetData(std::uint8_t *outData, std::uint64_t & len) {
         memcpy(outData, m_data + read_pos, first_part);
         memcpy(outData + first_part, m_data, len - first_part);
     }
-
     return true;
 }
 
